@@ -14,6 +14,7 @@ import android.text.TextUtils
 import android.view.KeyEvent
 import com.v2ray.ang.AppConfig
 import android.content.res.ColorStateList
+import android.os.Build
 import com.google.android.material.navigation.NavigationView
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
@@ -23,6 +24,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.lifecycleScope
 import com.tencent.mmkv.MMKV
@@ -40,6 +42,8 @@ import com.v2ray.ang.util.*
 import com.v2ray.ang.viewmodel.MainViewModel
 import kotlinx.coroutines.*
 import me.drakeet.support.toast.ToastCompat
+import rx.CompletableSubscriber
+import rx.Subscription
 import java.io.File
 import java.io.FileOutputStream
 
@@ -57,6 +61,24 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
     private var mItemTouchHelper: ItemTouchHelper? = null
     val mainViewModel: MainViewModel by viewModels()
 
+    private val startLoginResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        val intent = it.data;
+        val userName = intent?.getStringExtra(AppConfig.LOGIN_USER_NAME);
+        val password = intent?.getStringExtra(AppConfig.LOGIN_PASSWORD);
+
+        mainStorage.encode(AppConfig.LOGIN_USER_NAME, userName);
+        mainStorage.encode(AppConfig.LOGIN_PASSWORD, password);
+
+        if (userName != null) {
+            AesUtil.time33(userName)
+        }
+
+        if (password != null) {
+            AesUtil.time33(password);
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
@@ -64,6 +86,39 @@ class MainActivity : BaseActivity(), NavigationView.OnNavigationItemSelectedList
         setContentView(view)
         title = getString(R.string.title_server)
         setSupportActionBar(binding.toolbar)
+
+        var autoLoginEnabled = mainStorage.decodeBool(AppConfig.AUTO_LOGIN_ENABLED, false);
+        val intent: Intent = Intent(this, LoginActivity::class.java);
+        if (!autoLoginEnabled) {
+            startLoginResult.launch(intent);
+        }else {
+            val userName = mainStorage.decodeString(AppConfig.LOGIN_USER_NAME, "");
+            val password = mainStorage.decodeString(AppConfig.LOGIN_PASSWORD, "");
+            if (userName.isNullOrEmpty() || password.isNullOrEmpty()) {
+                startLoginResult.launch(intent);
+            }else {
+                if (userName != null) {
+                    AesUtil.time33(userName)
+                }
+
+                if (password != null) {
+                    AesUtil.time33(password);
+                }
+                AuthHelp.login(userName, password).subscribe(object : CompletableSubscriber {
+                    override fun onCompleted() {
+                        Toast.makeText(applicationContext, "自动登录成功", Toast.LENGTH_SHORT).show();
+                    }
+
+                    override fun onError(e: Throwable?) {
+                        Toast.makeText(applicationContext, "自动登录失败", Toast.LENGTH_SHORT).show();
+                        startLoginResult.launch(intent);
+                    }
+
+                    override fun onSubscribe(d: Subscription?) {
+                    }
+                })
+            }
+        }
 
         binding.fab.setOnClickListener {
             if (mainViewModel.isRunning.value == true) {

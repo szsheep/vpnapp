@@ -7,6 +7,18 @@ package com.v2ray.ang
 object AppConfig {
     const val ANG_PACKAGE = "com.v2ray.ang"
     const val DIR_ASSETS = "assets"
+    const val AUTO_LOGIN_ENABLED = "auto_login_enabled"
+    const val LOGIN_USER_NAME = "login_username"
+    const val LOGIN_PASSWORD = "login_password"
+
+    const val VPNServiceURL = "http://211.101.232.32:8321/api";
+    const val registerPath = "$VPNServiceURL/login/register";
+    const val getChallengePath = "$VPNServiceURL/login/getChallenge";
+    const val loginPath = "$VPNServiceURL/login/login";
+    const val updatePasswordPath = "$VPNServiceURL/user/updatePassword";
+    const val USER_AGENT = "Mozilla/5.0";
+    const val CONTENT_TYPE = "application/json";
+    const val ACCEPT = "application/json";
 
     // legacy
     const val ANG_CONFIG = "ang_config"
